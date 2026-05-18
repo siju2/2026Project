@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원가입</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+        :root {
+            --google-blue: #1a73e8;
+            --bg-light: #f8f9fa;
+            --surface: #ffffff;
+            --text-main: #202124;
+            --text-sub: #5f6368;
+            --border-color: #f1f3f4;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-main);
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        header {
+            background-color: var(--surface);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        #mega-menu {
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--surface);
+            opacity: 0;
+        }
+
+        #mega-menu.open {
+            max-height: 500px;
+            opacity: 1;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 2rem;
+        }
+
+        .register-card {
+            background: var(--surface);
+            border-radius: 32px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 2px rgba(60,64,67,0.1), 0 2px 6px 2px rgba(60,64,67,0.05);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-light);
+            font-size: 1rem;
+            transition: all 0.2s;
+            outline: none;
+        }
+
+        .input-field:focus {
+            background-color: var(--surface);
+            border-color: var(--google-blue);
+            box-shadow: 0 0 0 1px var(--google-blue);
+        }
+
+        .primary-btn {
+            background-color: #202124;
+            color: #ffffff;
+            border-radius: 32px;
+            padding: 1rem 2rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .primary-btn:hover {
+            background-color: #000000;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .secondary-btn {
+            background-color: transparent;
+            color: var(--google-blue);
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .secondary-btn:hover {
+            color: #174ea6;
+            text-decoration: underline;
+        }
+
+        .mega-item-btn {
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            transition: background 0.2s;
+            display: block;
+            color: var(--text-sub);
+            text-decoration: none;
+        }
+        .mega-item-btn:hover {
+            background-color: var(--bg-light);
+            color: var(--google-blue);
+        }
+    </style>
+</head>
+<body>
+
+    <header id="header" class="fixed top-0 left-0 w-full z-[1000]">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-8">
+                <button onclick="toggleMegaMenu()" class="text-sm font-medium text-gray-600 hover:text-blue-600 flex items-center gap-2 transition-all">
+                    <i class="fa-solid fa-bars text-[14px]"></i> 전체 메뉴
+                </button>
+                <a href="/" class="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">홈으로</a>
+            </div>
+            <div class="flex items-center space-x-6">
+                <div class="w-10 h-10 hover:bg-gray-100 rounded-full flex items-center justify-center cursor-pointer text-gray-600">
+                    <i class="fa-solid fa-circle-question"></i>
+                </div>
+            </div>
+        </div>
+
+        <div id="mega-menu">
+            <div class="max-w-7xl mx-auto px-10 py-10 grid grid-cols-4 gap-8">
+                <div>
+                    <h4 class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">메인 (HOME)</h4>
+                    <a href="/" class="mega-item-btn text-sm font-medium">서비스 소개</a>
+                    <a href="#" class="mega-item-btn text-sm font-medium">이용 가이드</a>
+                </div>
+                <div>
+                    <h4 class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">실시간 통역</h4>
+                    <a href="/translate" class="mega-item-btn text-sm font-medium">수어 에서 텍스트</a>
+                    <a href="#" class="mega-item-btn text-sm font-medium">자막 / 음성 설정</a>
+                    <a href="#" class="mega-item-btn text-sm font-medium">통역 기록관리</a>
+                </div>
+                <div>
+                    <h4 class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">수어 학습</h4>
+                    <a href="/collect" class="mega-item-btn text-sm font-medium">기초 수어</a>
+                    <a href="/collect" class="mega-item-btn text-sm font-medium">AI 동작 튜토리얼</a>
+                    <a href="#" class="mega-item-btn text-sm font-medium">나의 학습기록</a>
+                </div>
+                <div>
+                    <h4 class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">환경설정</h4>
+                    <a href="#" class="mega-item-btn text-sm font-medium">폰트 / 색상변경</a>
+                    <a href="#" class="mega-item-btn text-sm font-medium">웹캠 / 마이크설정</a>
+                    <a href="#" class="mega-item-btn text-sm font-medium">개인 프로필</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="min-h-screen flex items-center justify-center px-6 pt-24 pb-12">
+        <div class="register-card p-10 md:p-12">
+            <div class="text-center mb-10">
+                <h1 class="text-3xl font-bold mb-3">회원가입</h1>
+                <p class="text-gray-500 font-light">통합 시스템 서비스를 시작합니다</p>
+            </div>
+
+            <form action="/register" method="POST" class="space-y-5">
+                <div class="space-y-1">
+                    <input type="text" name="name" class="input-field" placeholder="이름" required>
+                </div>
+                
+                <div class="space-y-1">
+                    <input type="email" name="email" class="input-field" placeholder="사용할 이메일 주소" required>
+                    <p class="text-[12px] text-gray-500 px-2">현재 이메일 주소를 그대로 사용하실 수 있습니다.</p>
+                </div>
+
+                <div class="space-y-4 pt-2">
+                    <input type="password" name="password" class="input-field" placeholder="비밀번호" required>
+                    <input type="password" name="password_confirm" class="input-field" placeholder="비밀번호 확인" required>
+                </div>
+                <p class="text-[12px] text-gray-500 px-2">문자, 숫자, 기호를 조합하여 8자 이상으로 만드세요.</p>
+
+                <div class="flex flex-col md:flex-row items-center justify-between gap-6 pt-10">
+                    <a href="/login" class="secondary-btn font-bold text-base">대신 로그인</a>
+                    <button type="submit" class="primary-btn md:w-auto px-10">
+                        다음
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <footer class="py-10 text-center text-xs text-gray-400">
+        © 2026 Integrated System. All Rights Reserved.
+    </footer>
+
+    <script>
+        function toggleMegaMenu() {
+            const menu = document.getElementById('mega-menu');
+            menu.classList.toggle('open');
+        }
+
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('mega-menu');
+            const header = document.querySelector('header');
+            
+            if (!header.contains(e.target)) {
+                menu.classList.remove('open');
+            }
+        });
+    </script>
+</body>
+</html>

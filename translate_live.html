@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 통역 — 통합 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+        :root { --google-blue: #1a73e8; --bg-light: #f8f9fa; --surface: #ffffff; --text-main: #202124; --text-sub: #5f6368; --border-color: #f1f3f4; --google-red: #ea4335; }
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: var(--bg-light); color: var(--text-main); margin: 0; overflow: hidden; }
+        
+        header { background-color: var(--surface); border-bottom: 1px solid var(--border-color); height: 64px; }
+        
+        .live-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 24px;
+            height: calc(100vh - 120px);
+            max-width: 1600px;
+            margin: 80px auto 24px;
+            padding: 0 24px;
+        }
+
+        .video-container {
+            background: #000;
+            border-radius: 32px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(60,64,67,0.1);
+        }
+
+        #video-element { display: none; }
+        #output-canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: rotateY(180deg);
+        }
+
+        .video-state-msg {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff; text-align: center; z-index: 10;
+        }
+
+        .subtitle-area {
+            position: absolute;
+            top: 40px; left: 0; right: 0;
+            text-align: center; padding: 0 60px; z-index: 5;
+        }
+
+        .subtitle-box {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(20px);
+            color: #fff;
+            padding: 16px 32px;
+            border-radius: 24px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: inline-block;
+            min-width: 300px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .camera-controls {
+            position: absolute;
+            bottom: 24px; left: 50%;
+            transform: translateX(-50%);
+            display: flex; gap: 16px; z-index: 20;
+        }
+
+        .action-btn {
+            width: 56px; height: 56px;
+            border-radius: 28px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(12px);
+            color: white;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .action-btn:hover { background: rgba(0, 0, 0, 0.6); }
+        .action-btn.danger { background: var(--google-red); }
+        .action-btn.active { background: var(--google-blue); }
+
+        .log-sidebar {
+            background: var(--surface);
+            border-radius: 32px;
+            border: 1px solid var(--border-color);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .log-header { padding: 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .log-content { flex-grow: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+        .log-bubble { background: var(--bg-light); padding: 16px; border-radius: 20px; font-size: 0.95rem; line-height: 1.5; color: var(--text-main); animation: slideUp 0.3s ease; }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <header class="fixed top-0 left-0 w-full z-[1000] bg-white">
+        <div class="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <a href="/" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-600">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </a>
+                <h2 class="text-lg font-medium">실시간 수어 통역</h2>
+            </div>
+
+            <div class="absolute left-1/2 -translate-x-1/2">
+                <a href="/collect" class="flex items-center gap-2 px-6 py-2 bg-gray-900 text-white rounded-full text-xs font-bold hover:bg-blue-600 transition-all shadow-md group">
+                    <i class="fa-solid fa-database text-blue-400 group-hover:text-white transition-colors"></i>
+                    데이터 수집 센터 이동
+                </a>
+            </div>
+
+            <div class="flex items-center space-x-6">
+                <div id="status-badge" class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full">
+                    <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                    <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Connecting</span>
+                </div>
+                <div class="w-8 h-8 bg-gray-200 rounded-full border border-white"></div>
+            </div>
+        </div>
+    </header>
+
+    <main class="live-wrapper">
+        <section class="video-container">
+            <video id="video-element"></video>
+            <canvas id="output-canvas"></canvas>
+            
+            <div class="video-state-msg" id="loading-msg">
+                <i class="fa-solid fa-circle-notch fa-spin text-4xl mb-4 block text-white"></i>
+                <p class="text-sm font-medium">인식 엔진 로딩 중...</p>
+            </div>
+
+            <div class="subtitle-area">
+                <div class="subtitle-box" id="caption-display">대기 중...</div>
+            </div>
+
+            <div class="camera-controls">
+                <button class="action-btn" id="mic-btn" onclick="toggleMic()"><i class="fa-solid fa-microphone"></i></button>
+                
+                <button class="action-btn active" id="tts-btn" onclick="toggleTTS()" title="음성 통역 토글">
+                    <i class="fa-solid fa-volume-high"></i>
+                </button>
+                
+                <button class="action-btn" onclick="location.reload()"><i class="fa-solid fa-rotate"></i></button>
+                <button class="action-btn danger" onclick="location.href='/'"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </section>
+
+        <aside class="log-sidebar">
+            <div class="log-header"><h3 class="font-bold text-sm">통역 기록</h3></div>
+            <div class="log-content" id="log-box">
+                <div id="no-log-msg" class="text-center py-20 text-gray-400">
+                    <i class="fa-solid fa-quote-left text-2xl mb-4 opacity-20"></i>
+                    <p class="text-xs">실시간 통역 결과가 여기에 표시됩니다</p>
+                </div>
+            </div>
+            <div class="p-6 bg-gray-50/50">
+                <button id="btn-save-log" onclick="saveTranslationLog()" class="w-full bg-gray-900 hover:bg-blue-600 text-white py-3 rounded-2xl text-sm font-bold transition-all shadow-md">
+                    전체 기록 저장
+                </button>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        const video = document.getElementById('video-element');
+        const canvasElement = document.getElementById('output-canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const captionDisplay = document.getElementById('caption-display');
+        const logBox = document.getElementById('log-box');
+        const loadingMsg = document.getElementById('loading-msg');
+        const statusBadge = document.getElementById('status-badge');
+
+        const socket = io();
+        
+        // 3주차 기능 제어 변수
+        let isTtsEnabled = true;
+        let translationHistory = [];
+        let lastSpokenWord = "";
+
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(onResults);
+
+        function onResults(results) {
+            loadingMsg.style.display = 'none';
+            statusBadge.innerHTML = `<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span><span class="text-xs font-bold text-green-600 uppercase">Live</span>`;
+
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            if (results.multiHandLandmarks) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#ffffff', lineWidth: 2});
+                    drawLandmarks(canvasCtx, landmarks, {color: '#1a73e8', lineWidth: 1, radius: 3});
+                }
+                socket.emit('video_frame', { landmarks: results.multiHandLandmarks });
+            }
+            canvasCtx.restore();
+        }
+
+        // [3주차 고도화] 서버 통역 결과 수신 + TTS 음성 출력 제어
+        socket.on('translate_result', (data) => {
+            const currentWord = data.word;
+            captionDisplay.innerText = currentWord;
+            
+            if (currentWord && currentWord !== '분석 중...' && currentWord !== '대기 중...') {
+                // [TTS 기능] 토글이 켜져있고 이전 단어와 다를 때만 음성 출력 (중복 리딩 방지)
+                if (isTtsEnabled && currentWord !== lastSpokenWord) {
+                    const utterance = new SpeechSynthesisUtterance(currentWord);
+                    utterance.lang = 'ko-KR';
+                    window.speechSynthesis.speak(utterance);
+                    lastSpokenWord = currentWord;
+                }
+                
+                addLog(currentWord);
+            }
+        });
+
+        function addLog(word) {
+            if (document.getElementById('no-log-msg')) document.getElementById('no-log-msg').remove();
+            
+            const time = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            // 전역 배열에 기록 누적 (저장용)
+            translationHistory.push({ time: time, word: word });
+
+            const bubble = document.createElement('div');
+            bubble.className = 'log-bubble';
+            bubble.innerHTML = `<span class="block text-xs text-gray-400 mb-1">${time}</span>${word}`;
+            logBox.prepend(bubble);
+        }
+
+        // [3주차 추가] 음성 출력 토글 함수
+        function toggleTTS() {
+            const btn = document.getElementById('tts-btn');
+            isTtsEnabled = !isTtsEnabled;
+            
+            if (isTtsEnabled) {
+                btn.classList.add('active');
+                btn.innerHTML = `<i class="fa-solid fa-volume-high"></i>`;
+            } else {
+                btn.classList.remove('active');
+                btn.innerHTML = `<i class="fa-solid fa-volume-xmark"></i>`;
+            }
+        }
+
+        // [3주차 추가] 통역 기록 서버 저장 연동
+        async function saveTranslationLog() {
+            if (translationHistory.length === 0) {
+                alert("저장할 통역 기록이 없습니다.");
+                return;
+            }
+
+            try {
+                const response = await fetch('/save-history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ history: translationHistory })
+                });
+                const result = await response.json();
+                if (result.status === "success") {
+                    alert("통역 기록이 서버에 안전하게 저장되었습니다! 💾");
+                } else {
+                    alert("저장 실패: " + result.message);
+                }
+            } catch (err) {
+                alert("서버 통신 오류가 발생했습니다.");
+            }
+        }
+
+        const camera = new Camera(video, {
+            onFrame: async () => {
+                await hands.send({image: video});
+            },
+            width: 1280,
+            height: 720
+        });
+        camera.start();
+
+        function toggleMic() {
+            document.getElementById('mic-btn').classList.toggle('danger');
+        }
+
+        function resize() {
+            canvasElement.width = canvasElement.clientWidth;
+            canvasElement.height = canvasElement.clientHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+    </script>
+</body>
+</html>
